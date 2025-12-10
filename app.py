@@ -50,17 +50,39 @@ def load_products(csv_path: str = "products.csv") -> pd.DataFrame:
     """
     products.csv 파일을 불러옵니다.
     예상 컬럼명: 품명, 가격, 이미지url (또는 name, price, image_url)
-    """
-    try:
-        df = pd.read_csv(csv_path, encoding="utf-8-sig")
-    except FileNotFoundError:
-        st.error(
-            f"'products.csv' 파일을 찾을 수 없습니다. "
-            f"앱과 같은 폴더에 'products.csv'를 넣어 주세요."
-        )
-        return pd.DataFrame()
 
-    return df
+    ⚠️ 여러 인코딩을 순서대로 시도합니다.
+    - utf-8-sig
+    - utf-8
+    - cp949 (윈도우 엑셀 기본)
+    - euc-kr
+    """
+    encodings_to_try = ["utf-8-sig", "utf-8", "cp949", "euc-kr"]
+
+    last_error = None
+    for enc in encodings_to_try:
+        try:
+            df = pd.read_csv(csv_path, encoding=enc)
+            return df
+        except UnicodeDecodeError as e:
+            last_error = e
+            continue
+        except FileNotFoundError:
+            st.error(
+                f"'products.csv' 파일을 찾을 수 없습니다. "
+                f"앱과 같은 폴더에 'products.csv'를 넣어 주세요."
+            )
+            return pd.DataFrame()
+
+    # 여기까지 왔다는 것은 인코딩 시도 모두 실패했다는 뜻
+    st.error(
+        "products.csv 파일을 읽는 중 인코딩 오류가 발생했습니다. "
+        "엑셀에서 '다른 이름으로 저장'을 선택한 뒤, "
+        "'CSV UTF-8(쉼표로 분리)' 형식으로 저장해 보세요."
+    )
+    if last_error:
+        st.text(f"(마지막 오류 메시지: {last_error})")
+    return pd.DataFrame()
 
 
 def get_column_name(df: pd.DataFrame, kor: str, eng: str, label: str) -> str:
